@@ -14,6 +14,16 @@ def two(db):
             "count": { "$avg": "$activity_size"}
         } }
     ] # Not yet tested...
+    avg_res = db['User'].aggregate(avg_pipeline)
+
+    max_pipeline = 0
+    max_res  = 0
+
+    min_pipline = 0
+    min_res = 0
+    
+    return avg_res, max_res, min_res
+    
 
 
 
