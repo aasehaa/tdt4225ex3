@@ -19,6 +19,9 @@ except:
 
 class InsertDataProgram:
 
+    potential_matches = {}
+    transp_mode = ""
+
     def __init__(self):
         self.connection = DbConnector()
         self.client = self.connection.client
@@ -41,34 +44,36 @@ class InsertDataProgram:
 
     def add_all_data(self):
 
-        dataset_path = os.path.dirname(__file__) + "\\..\\dataset"
-        # test_dataset_path = os.path.dirname(__file__) + "\\..\\testDataset2"
+        dataset_path = os.path.dirname(__file__) + "/../dataset"
+        test_dataset_path = os.path.dirname(__file__) + "/../testDataset"
+
+        activity_primary_id = 0
+        track_point_id = 0
 
         user_doc = {
-            "_id": "",  # primary key
+            "_id": "",
             "has_labels": False,
             "activities": []
         }
 
-        with open(dataset_path + '/labeled_ids.txt', 'r') as fs:
+        with open(test_dataset_path + '/labeled_ids.txt', 'r') as fs:
             labeled_IDs = fs.read().splitlines()
 
-        for level, (root, dirs, files) in tqdm(enumerate(os.walk(dataset_path + '\\Data'))):
+        for level, (root, dirs, files) in enumerate(os.walk(test_dataset_path + '/Data')):
+            print('hurra')
             if level == 0:
                 for id in dirs:
                     user_has_labels = id in labeled_IDs
                     user_doc["_id"] = id
                     user_doc["has_labels"] = user_has_labels
-
                     # Create a 2D list for each ID in a dictionary made for matching activities with their labels
                     self.potential_matches[id] = [[], [], []]
 
-            # is this working for insert many purpose? if not, just insert single activites
             activity_docs = []
 
             if files != []:
-
                 for fn in files:
+
                     file_type = fn[-3:]
 
                     if file_type == 'txt':
@@ -78,7 +83,6 @@ class InsertDataProgram:
                         activity = self.get_activity(root, fn)
                         valid_activity = self.check_valid_activity(activity)
 
-                        activity_primary_id = 0
                         if valid_activity:
 
                             track_points = []
@@ -92,7 +96,7 @@ class InsertDataProgram:
                                 activity_start, activity_end, user)
 
                             track_point_docs = []
-                            track_point_id = 0
+
                             for point in activity:
 
                                 track_point = self.create_track_point(
@@ -125,13 +129,17 @@ class InsertDataProgram:
                             user_doc["activities"].append(activity_primary_id)
                             activity_primary_id += 1
 
-            # add all track point docs to collection in db
-            activity_collection = self.db["Activity"]
-            activity_collection.insert_many(activity_docs)
+            if(activity_docs != []):
 
-        # add user to collection
-        user_collection = self.db["User"]
-        user_collection.insert(user_doc)
+                # add all track point docs to collection in db
+                activity_collection = self.db["Activity"]
+                activity_collection.insert_many(activity_docs)
+
+        if(user_doc != []):
+
+            # add user to collection
+            user_collection = self.db["User"]
+            user_collection.insert_one(user_doc)
 
     def add_labeled_files_to_dict(self, root, fn):
         with open(root + '/' + fn, 'r') as labels_file:
@@ -171,7 +179,6 @@ class InsertDataProgram:
             ',')
         time_datetime = date + " " + time
 
-        # TODO: Update method here!
         track_point = TrackPointObj.TrackPoint(
             activity_ID, lat, long, alt, timestamp, time_datetime)
 
@@ -190,10 +197,7 @@ class InsertDataProgram:
     def drop_coll(self, collection_name):
         collection = self.db[collection_name]
         collection.drop()
-
-    def show_coll(self):
-        collections = self.client['test'].list_collection_names()
-        print(collections)
+        print('Collection ' + collection_name + ' dropped. ')
 
     def fetch_documents(self, collection_name):
         collection = self.db[collection_name]
@@ -208,23 +212,33 @@ class InsertDataProgram:
 def main():
     program = None
     try:
+        print('start program')
         program = InsertDataProgram()
-        program.create_coll(collection_name="User")
-        program.create_coll(collection_name="Activity")
-        program.create_coll(collection_name="TrackPoint")
-        program.show_coll()
+
+        # Uncomment to create all collections
+        # program.create_coll(collection_name="User")
+        # program.create_coll(collection_name="Activity")
+        # program.create_coll(collection_name="TrackPoint")
+
+        # Uncomment to add all data - remember to check dataset path
         # program.add_all_data()
-        # program.fetch_documents(collection_name="User")
+
+        # Uncomment for dropping collections
         # program.drop_coll(collection_name="User")
-        # program.drop_coll(collection_name='person')
-        # program.drop_coll(collection_name='users')
-        # Check that the table is dropped
-        program.show_coll()
+        # program.drop_coll(collection_name='Activity')
+        # program.drop_coll(collection_name='TrackPoint')
+
+        # Test code to check trackpoints or activities (does not work for user)
+        #collection = program.db['TrackPoint']
+        #documents = collection.find({}).limit(5)
+        # for doc in documents:
+        # pprint(doc)
     except Exception as e:
         print("ERROR: Failed to use database:", e)
     finally:
         if program:
             program.connection.close_connection()
 
-    if __name__ == '__main__':
-        main()
+
+if __name__ == '__main__':
+    main()
