@@ -11,16 +11,33 @@ def two(db):
             "activity_size": { "$size": "$activities" }
         } },
         { "$group": {
+            "_id" : "null",
             "count": { "$avg": "$activity_size"}
         } }
-    ] # Not yet tested...
+    ]
     avg_res = db['User'].aggregate(avg_pipeline)
 
-    max_pipeline = 0
-    max_res  = 0
+    max_pipeline = [
+        {"$project": {
+            "activity_size": { "$size": "$activities" }
+        } },
+        { "$group": {
+            "_id" : "null",
+            "count": { "$max": "$activity_size"}
+        } }
+    ]
+    max_res  = db['User'].aggregate(max_pipeline)
 
-    min_pipline = 0
-    min_res = 0
+    min_pipeline = [
+        {"$project": {
+            "activity_size": { "$size": "$activities" }
+        } },
+        { "$group": {
+            "_id" : "null",
+            "count": { "$min": "$activity_size"}
+        } }
+    ]
+    min_res = db['User'].aggregate(min_pipeline)
     
     return avg_res, max_res, min_res
     
