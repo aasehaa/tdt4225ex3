@@ -1,4 +1,3 @@
-from datetime import datetime
 
 def one(db):
     """Find number of entries in each collection"""
@@ -69,13 +68,11 @@ def four(db):
         end_day = doc['end_date_time'][8:10]
         if start_day != end_day:
             activity_list.append(doc["_id"])
-    # db['User'].find({'_id': act})
-    # Psudeocode
-    # QUERY acitivities where start_day != end_day
-    # for r in res:
-    #   find user_id where r._id is in user_id['activities']
-    #   place in set
-    #   return len(set)
+    for act in activity_list:
+        # Find userIDs where act in db.User['activities']
+        pass
+    # Remove duplicate userIDs, e.g. with set()
+    # Return len(set of UserIDs)
     pass
 
 def main():
