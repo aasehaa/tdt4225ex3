@@ -41,7 +41,8 @@ def two(db):
     return avg_res, max_res, min_res
 
 def three(db):
-        pipeline = [
+    """10 users with the most number of activities"""
+    pipeline = [
         {"$project": {
             "activity_size": { "$size": "$activities" }
         } },
@@ -50,30 +51,19 @@ def three(db):
         } },
         {"$limit": 10}
         ]
-        return db['User'].aggregate(pipeline)
+    return db['User'].aggregate(pipeline)
 
 def four(db):
-    pipeline = [
-    {"$project": {
-        "activity_size": { "$size": "$activities" }
-    } },
-    { "$sort": {
-        "activity_size": -1
-    } },
-    {"$limit": 10}
-    ]
     activity_list = []
+    users = set()
     for doc in db['Activity'].find({}):
         start_day = doc['start_date_time'][8:10]
         end_day = doc['end_date_time'][8:10]
         if start_day != end_day:
             activity_list.append(doc["_id"])
     for act in activity_list:
-        # Find userIDs where act in db.User['activities']
-        pass
-    # Remove duplicate userIDs, e.g. with set()
-    # Return len(set of UserIDs)
-    pass
+        users.add(db['User'].find( { 'activities': act }, {'_id': 1}))
+    return len(users), users
 
 def main():
     pass
