@@ -1,7 +1,7 @@
-from functools import partial
-from typing_extensions import final # For a simple selection menu
+from functools import partial # For a simple selection menu
 from DbConnector import DbConnector
 from pprint import pprint
+import utils
 
 def one(db):
     """Find number of entries in each collection"""
@@ -77,8 +77,11 @@ def four(db):
         if start_day != end_day:
             activity_list.append(doc["_id"])
     for act in activity_list:
-        users.add(db['User'].find( { 'activities': act }, {'_id': 1}))
-    return len(users), users
+        # TODO this seems slow, can probably be optimized
+        user_ID = utils.single_val(cursor=db['User'].find( { 'activities': act }, {'_id': 1} ), key='_id')
+        users.add(user_ID)
+    print("Number of users that have started the activity in one day,\nand ended the activity the next day:")
+    print(len(users))
 
 
 
