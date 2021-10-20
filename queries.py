@@ -1,3 +1,4 @@
+from functools import partial # For a simple selection menu
 
 def one(db):
     """Find number of entries in each collection"""
@@ -65,7 +66,37 @@ def four(db):
         users.add(db['User'].find( { 'activities': act }, {'_id': 1}))
     return len(users), users
 
+
+
+def select_menu():
+    """Selection menu so user may choose tasks easily"""
+    menu_selection = ''
+    menu = {
+        "1": partial(one),
+        "2": partial(two),
+        "3": partial(three),
+        "4": partial(four),
+        "5": partial(print, ""),
+        "6": partial(print, ""),
+        "7": partial(print, ""),
+        "8": partial(print, ""),
+        "9": partial(print, ""),
+        "10": partial(print, ""),
+        "11": partial(print, ""),
+        "12": partial(print, ""),
+        "q": partial(print, "")
+    }
+    while menu_selection != 'q':
+        print("Selection menu", "Select query number from 1 to 12", "Enter 'q' to exit", sep='\n')
+        menu_selection = input("Choose task: ").lower()
+        try:
+            menu[menu_selection]()
+        except KeyError:
+            print("Invalid selection, try again.")
+
+
 def main():
+    select_menu()
     pass
 
 if __name__ == '__main__':
