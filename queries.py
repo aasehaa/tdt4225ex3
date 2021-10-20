@@ -1,8 +1,13 @@
-from functools import partial # For a simple selection menu
+from functools import partial
+from typing_extensions import final # For a simple selection menu
+from DbConnector import DbConnector
+from pprint import pprint
 
 def one(db):
     """Find number of entries in each collection"""
-    return db['User'].count(), db['Activity'].count(), db['TrackPoint'].count()
+    print("User count", "Activity count", "TrackPoint count", sep="\t")
+    print(db['User'].count(), db['Activity'].count(), db['TrackPoint'].count(), sep="\t\t")
+    return 
 
 def two(db):
     """Find average, min and max number of activities per user"""
@@ -39,6 +44,12 @@ def two(db):
     ]
     min_res = db['User'].aggregate(min_pipeline)
     
+    print("Average", "Max", "Min", sep="\t")
+    print(
+        round(dict(list(avg_res)[-1])['count'], 2),
+        dict(list(max_res)[-1])['count'],
+        dict(list(min_res)[-1])['count']
+    , sep='\t')
     return avg_res, max_res, min_res
 
 def three(db):
@@ -52,7 +63,10 @@ def three(db):
         } },
         {"$limit": 10}
         ]
-    return db['User'].aggregate(pipeline)
+    docs = db['User'].aggregate(pipeline) 
+    for doc in docs:
+        pprint(doc)
+    return
 
 def four(db):
     activity_list = []
@@ -68,14 +82,14 @@ def four(db):
 
 
 
-def select_menu():
+def select_menu(*args):
     """Selection menu so user may choose tasks easily"""
     menu_selection = ''
     menu = {
-        "1": partial(one),
-        "2": partial(two),
-        "3": partial(three),
-        "4": partial(four),
+        "1": partial(one, *args),
+        "2": partial(two, *args),
+        "3": partial(three, *args),
+        "4": partial(four, *args),
         "5": partial(print, ""),
         "6": partial(print, ""),
         "7": partial(print, ""),
@@ -91,12 +105,20 @@ def select_menu():
         menu_selection = input("Choose task: ").lower()
         try:
             menu[menu_selection]()
+            print(25*"-")
         except KeyError:
             print("Invalid selection, try again.")
 
 
 def main():
-    select_menu()
+    connection = DbConnector()
+    db = connection.db
+    try:
+        select_menu(db)
+    except Exception as e:
+        print("Unexpected error while querying database", e, sep="\n")
+    finally:
+        connection.close_connection()
     pass
 
 if __name__ == '__main__':
