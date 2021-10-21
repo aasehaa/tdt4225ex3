@@ -51,15 +51,21 @@ def eight(db):
     have used the different transportation modes. Do not count the rows where the
     transportation mode is null"""
 
-    res = db['Activity'].aggregate(
-        { "$match": { "transportation_mode": {"$ne": "NULL" }}
-        },
-        { "$group": {
-                "_id" : "$transportation_mode",
-                "count": { "$count": {"$_id"} }
+    res = db['Activity'].aggregate([
+        {"$group": {
+            "_id": "$transportation_mode", 
+            "count": {"$sum":1}
             }
-        }
-    )
+        },
+        {"$match": {
+            "transportation_mode" : {"$ne": "NULL"}
+        }}
+    ])
+
+    for doc in res:
+        if doc['_id'] == 'NULL':
+            continue
+        print(doc)
 
     return res
 
@@ -97,6 +103,7 @@ def ten(db):
         for g in range(0, len(li[s])-1):
             total_distance += haversine((float(li[s][g]["lat"]), float(li[s][g]["lon"])), (float(li[s][g+1]["lat"]), float(li[s][g+1]["lon"])))
 
+    print('The total distance walked by user with id=112 in 2008 is:')
     print(total_distance)
     return total_distance
 
@@ -113,7 +120,7 @@ def select_menu(*args):
         "5": partial(print, ""),
         "6": partial(print, ""),
         "7": partial(print, ""),
-        "8": partial(print, ""),
+        "8": partial(eight, *args),
         "9": partial(print, ""),
         "10": partial(ten, *args),
         "11": partial(print, ""),
