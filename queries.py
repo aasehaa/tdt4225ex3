@@ -155,6 +155,29 @@ def eleven(db):
 
     return alt_gained
 
+def twelve(db):
+    pass
+    # "Psudeocode" (actually pretty much ready but not tested):
+    """ 
+    TIMEOUT_CRITERIA_FROM_TIMESTAMP = 5 * 60/86_400
+    invalid_dict = dict()
+    for i in range(1,182):
+        invalid_dict[str(i).zfill(3)] = 0
+
+    for user in tqdm(invalid_dict.keys()):
+        act_list = db.User.find({"_id": user})
+        for act in act_list:
+            TP_list = db.TrackPoint.find({"activity_id": act['_id']})
+            prev_TP_time = 0
+            for TP in TP_list:
+                time_difference = abs(TP['date_days'] - prev_TP_time)
+                if time_difference >= TIMEOUT_CRITERIA_FROM_TIMESTAMP:
+                    # Triggers if activity is invalid
+                    invalid_dict[user] += 1
+                    break # Breaks out of TP loop so we jump to the next activity
+    pprint(invalid_dict)
+    return invalid_dict
+    """
 
 def select_menu(*args):
     """Selection menu so user may choose tasks easily"""
