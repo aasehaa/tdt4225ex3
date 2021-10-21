@@ -4,6 +4,11 @@ from DbConnector import DbConnector
 from haversine import haversine, Unit
 from pprint import pprint
 import utils
+try:
+    from tqdm import tqdm
+except:
+    def tqdm(*args):
+        return args
 
 def one(db):
     """Find number of entries in each collection"""
@@ -122,6 +127,33 @@ def six(db):
         print(person['_id'])
     
     return close_contacts
+
+def eleven(db):
+    ONE_METER_FEET = 0.3048 # 1 foot ~0.3 feet
+    alt_gained = dict()
+    for i in range(1,182):
+        alt_gained[str(i).zfill(3)] = 0
+    
+    for user in tqdm(alt_gained.keys()):
+        act_list = db.User.find({"_id": user})
+        for act in act_list:
+            TP_list = db.TrackPoint.find({"activity_id": act['_id']})
+            prev_TP_alt = 0
+            for TP in TP_list:
+                if TP['altitude'] == -777: # Skip invalid altitude all-together
+                    prev_TP_alt = 0
+                    continue
+                if TP['altitude'] > prev_TP_alt:
+                    alt_gained[user] += TP['altitude'] - prev_TP_alt
+                prev_TP_alt = TP['altitude']
+    
+    # Get the top 20 highest total altitude
+    top_users = sorted(alt_gained, key=alt_gained.get, reverse=True)[:20]
+    print("Query 11\nPlace\tUserID\tAltitude gained")
+    for num, usr in enumerate(top_users):
+        print(num+1, usr, alt_gained[usr]*ONE_METER_FEET, sep='\t')
+
+    return alt_gained
 
 
 def select_menu(*args):
