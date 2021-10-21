@@ -1,5 +1,7 @@
 from functools import partial # For a simple selection menu
+from datetime import datetime
 from DbConnector import DbConnector
+from haversine import haversine, Unit
 from pprint import pprint
 import utils
 
@@ -83,6 +85,43 @@ def four(db):
     print("Number of users that have started the activity in one day,\nand ended the activity the next day:")
     print(len(users))
 
+def six(db):
+    """Find user_ids 'close' to given infected person"""
+    HOUNDED_METER_FEET = 328.08399 # 100m ~ 328 feet'
+    SIXTY_SECONDS_DAYS = 60/86_400 # 86,400 seconds = 1 day
+    infected_position =  (39.97548, 116.33031)
+    # Get infected time and convert to same format as in database
+    infected_time = datetime.strptime('2008-08-24 15:38:00', '%Y-%m-%d %H:%M:%S')
+    infected_time = utils.posix_to_excel(datetime.timestamp(infected_time))
+
+    close_activities = set()
+    
+    TP_given_time = db.TrackPoint.find({
+        "date_days": {
+            "$gt$": infected_time - SIXTY_SECONDS_DAYS,
+            "$lt":  infected_time + SIXTY_SECONDS_DAYS
+            }
+    })
+    for TP in TP_given_time:
+        if TP['activity_id'] not in close_activities:
+            coords = (TP['lat'], TP['lon'])
+            distance = haversine(infected_position, coords, unit=Unit.METERS)
+            if distance <= 100:
+                # Here we would've added an altitude check, but we don't know what altitude the infected is at
+                # Instead, just add the activity
+                close_activities.add(TP['activity_id'])
+
+    # Now we need to get unique user IDs from the collection of activities that match
+    close_list = list(close_activities)
+    close_contacts = db['User'].distinct(
+        "_id",
+        {"activities": {"$in": close_list}
+        })
+    print("Close contacts with infected:")
+    for person in close_contacts:
+        print(person['_id'])
+    
+    return close_contacts
 
 
 def select_menu(*args):
