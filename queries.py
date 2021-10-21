@@ -56,10 +56,7 @@ def eight(db):
             "_id": "$transportation_mode", 
             "count": {"$sum":1}
             }
-        },
-        {"$match": {
-            "transportation_mode" : {"$ne": "NULL"}
-        }}
+        }
     ])
 
     for doc in res:
