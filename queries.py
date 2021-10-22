@@ -19,7 +19,7 @@ def one(db):
 
 def two(db):
     """Find average, min and max number of activities per user"""
-    avg_pipeline = [
+    avg_pipeline = [ # $size gets length of user['activities'] list
         {"$project": {
             "activity_size": { "$size": "$activities" }
         } },
@@ -51,7 +51,7 @@ def two(db):
         } }
     ]
     min_res = db['User'].aggregate(min_pipeline)
-    
+    # Prints results
     print("Average", "Max", "Min", sep="\t")
     print(
         round(dict(list(avg_res)[-1])['count'], 2),
@@ -74,20 +74,21 @@ def three(db):
     docs = db['User'].aggregate(pipeline) 
     for doc in docs:
         pprint(doc)
-    return
+    return docs
 
 def four(db):
+    """Number of users with activity ending other day than it started"""
     activity_list = []
     users = set()
     for doc in db['Activity'].find({}):
-        start_day = doc['start_date_time'][8:10]
-        end_day = doc['end_date_time'][8:10]
-        if start_day != end_day:
+        start_day = doc['start_date_time'][8:10] # Since dates are stored as strings, we need to slice it
+        end_day = doc['end_date_time'][8:10]     # to get the days. We also assume no activities end
+        if start_day != end_day:                 # 1 month after start (but same day of month)
             activity_list.append(doc["_id"])
     for act in activity_list:
         # TODO this seems slow, can probably be optimized
         user_ID = utils.single_val(cursor=db['User'].find( { 'activities': act }, {'_id': 1} ), key='_id')
-        users.add(user_ID)
+        users.add(user_ID) # Sets skip adding duplicates so we only get unique UserIDs
     print("Number of users that have started the activity in one day,\nand ended the activity the next day:")
     print(len(users))
 
@@ -99,16 +100,16 @@ def six(db):
     infected_time = datetime.strptime('2008-08-24 15:38:00', '%Y-%m-%d %H:%M:%S')
     infected_time = utils.posix_to_excel(datetime.timestamp(infected_time))
 
-    close_activities = set()
+    close_activities = set() # For storing activity IDs
     
-    TP_given_time = db['TrackPoint'].find({
+    TP_given_time = db['TrackPoint'].find({ # First limit to trackpoints from the same time frame
         "date_days": {
             "$gt": infected_time - SIXTY_SECONDS_DAYS,
             "$lt":  infected_time + SIXTY_SECONDS_DAYS
             }
     })
     for TP in TP_given_time:
-        if TP['activity_id'] not in close_activities:
+        if TP['activity_id'] not in close_activities: # Skip if activity is already added
             coords = (TP['lat'], TP['lon'])
             distance = haversine(infected_position, coords, unit=Unit.METERS)
             if distance <= 100:
@@ -219,51 +220,57 @@ def ten(db):
 
 
 def eleven(db):
+    """Get top 20 users with most altitude gained over all activities"""
     ONE_METER_FEET = 0.3048 # 1 foot ~0.3 feet
     alt_gained = dict()
     for i in range(1,182):
         alt_gained[str(i).zfill(3)] = 0
     
     for user in tqdm(alt_gained.keys()):
+        # For each user, get the list of activities:
         activities_to_user = utils.single_val(db.User.find({"_id": user}), 'activities')
-        # act_list = db.User.find({"_id": user}) # user dictionary result
+        # TODO 'single_val` could be optimized better as it re-casts query result several times
         for act in tqdm(activities_to_user): # act_list:
-            TP_list = db.TrackPoint.find({"activity_id": act})
-            prev_TP_alt = 0
-            for TP in TP_list:
-                if TP['altitude'] == -777: # Skip invalid altitude all-together
-                    prev_TP_alt = 0
+            TP_list = list(db.TrackPoint.find({"activity_id": act}))
+            for i in range(1, len(TP_list)):
+                if TP_list[i-1] == -777 or TP_list[i] == -777: # Skip invalid altitude all-together
                     continue
-                if TP['altitude'] > prev_TP_alt:
-                    alt_gained[user] += TP['altitude'] - prev_TP_alt
-                prev_TP_alt = TP['altitude']
+                altitude_difference = TP_list[i] - TP_list[i-1]
+                if altitude_difference > 0:
+                    # Add difference between last and current altitude to dictionary
+                    alt_gained[user] += altitude_difference
     
     # Get the top 20 highest total altitude
     top_users = sorted(alt_gained, key=alt_gained.get, reverse=True)[:20]
     print("Query 11\nPlace\tUserID\tAltitude gained")
     for num, usr in enumerate(top_users):
-        print(num+1, usr, alt_gained[usr]*ONE_METER_FEET, sep='\t')
+        print(num+1, usr, alt_gained[usr]*ONE_METER_FEET, sep='\t') # Translating feet to meter here
 
     return alt_gained
 
 def twelve(db):
-    TIMEOUT_CRITERIA_FROM_TIMESTAMP = 5 * 60/86_400
+    """Find number of invalid activities for each user"""
+    TIMEOUT_CRITERIA_FROM_TIMESTAMP = 5 * 60/86_400 # 5 minutes in "day unit"
     invalid_dict = dict()
     for i in range(1,182):
         invalid_dict[str(i).zfill(3)] = 0
 
     for user in tqdm(invalid_dict.keys()):
-        act_list = db.User.find({"_id": user})
-        for act in act_list:
-            TP_list = db.TrackPoint.find({"activity_id": act['_id']})
-            prev_TP_time = 0
-            for TP in TP_list:
-                time_difference = abs(TP['date_days'] - prev_TP_time)
+        act_list = utils.single_val(db.User.find({"_id": user}), "activities")
+        for act in tqdm(act_list):
+            TP_list = list(db.TrackPoint.find({"activity_id": act}))
+            for i in range(1, len(TP_list)):
+                time_difference = abs(TP_list[i]['date_days'] - TP_list[i-1]['date_days'])
                 if time_difference >= TIMEOUT_CRITERIA_FROM_TIMESTAMP:
                     # Triggers if activity is invalid
                     invalid_dict[user] += 1
                     break # Breaks out of TP loop so we jump to the next activity
-    pprint(invalid_dict)
+    
+    # Print results 
+    print("UserID", "# Invalid activities", sep="\t")
+    for user_ID, num_invalid in invalid_dict.items():
+        if num_invalid != 0:
+            print(user_ID, num_invalid, sep="\t\t")
     return invalid_dict
 
 def select_menu(*args):
