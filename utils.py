@@ -1,5 +1,3 @@
-from datetime import time
-
 
 def single_val(cursor, key : str):
     """Helper to easier get a single value out of a query result.
@@ -30,7 +28,8 @@ def excel_to_posix(excel_timestamp : float) -> float:
 def posix_to_excel(posix_timestamp : float) -> float:
     return round(1/86400 * (float(posix_timestamp)+7200)+ 25569, 10)
 
-def testing():
+def _testing():
+    """Collection of tests of the module's functions"""
     from datetime import datetime
     time_dt = datetime.strptime('2009-10-11 14:04:30', '%Y-%m-%d %H:%M:%S')
     time_stamp = datetime.timestamp(time_dt)
@@ -52,4 +51,4 @@ def testing():
     print(posix_now, datetime_now)
 
 if __name__ == '__main__':
-    testing()
+    _testing()
