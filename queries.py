@@ -98,40 +98,39 @@ def four(db):
 
 def five(db):
     """Find activities that are registered multiple times. You should find the query
-    even if you get zero results."""
+    even if you get zero results.
+    """
 
-    # activities that are registerd multiple times - not same id
-    activity_hash = []
-    multiple_activities_registered = []
+    activity_hash = {}
     activities = db['Activity'].find({})
-    count = 0
 
     for act in activities:
-        if count < 3:
-            hash_value = act['start_date_time'] + \
-                act['end_date_time'] + act['transportation_mode']
-            # print(hash_value)
+        hash_value = act['start_date_time'] + \
+            act['end_date_time'] + act['transportation_mode']
 
-            if hash_value in activity_hash:
-                print(hash_value)
-                print(activity_hash)
-                count += 1
-                multiple_activities_registered.append(act['_id'])
-            else:
-                activity_hash.append(hash_value)
-    """
-    activities = db['Activity'].aggregate([
-        {"$group": {"_id": "start_date_time", "count": {"$sum": 1}}},
-        {"$match": {"_id": {"$ne": "null"}, "count": {"$gt": 1}}},
-        {"$project": {"name": "$_id", "_id": 0}}
-    ])
+        if hash_value in activity_hash:
+            activity_hash[hash_value].append(act['_id'])
 
-    for doc in activities:
-        pprint(doc)
-    """
+        else:
+            activity_hash[hash_value] = [act['_id']]
 
-    # print(count)
-    # print(multiple_activities_registered)
+    only_multiple_hashes = {}
+    for act in activity_hash:
+        if len(activity_hash[act]) > 1:
+            only_multiple_hashes[act] = activity_hash[act]
+
+    users = db['User'].find({})
+    num_of_duplicates = 0
+    for user in users:
+        for hash_value in only_multiple_hashes:
+            count = 0
+            for id in only_multiple_hashes[hash_value]:
+                if id in user['activities']:
+                    count += 1
+            if count > 1:
+                num_of_duplicates += 1
+
+    print('Number of duplicated activities:', num_of_duplicates)
 
 
 def six(db):
