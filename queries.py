@@ -57,11 +57,7 @@ def two(db):
         }}
     ]
     min_res = db['User'].aggregate(min_pipeline)
-<<<<<<< HEAD
     # Prints results
-=======
-
->>>>>>> 7cf2799705396028f666417d7c6366c160e94231
     print("Average", "Max", "Min", sep="\t")
     print(
         round(dict(list(avg_res)[-1])['count'], 2),
@@ -99,14 +95,8 @@ def four(db):
     for act in activity_list:
 
         # TODO this seems slow, can probably be optimized
-<<<<<<< HEAD
         user_ID = utils.single_val(cursor=db['User'].find( { 'activities': act }, {'_id': 1} ), key='_id')
         users.add(user_ID) # Sets skip adding duplicates so we only get unique UserIDs
-=======
-        user_ID = utils.single_val(cursor=db['User'].find(
-            {'activities': act}, {'_id': 1}), key='_id')
-        users.add(user_ID)
->>>>>>> 7cf2799705396028f666417d7c6366c160e94231
     print("Number of users that have started the activity in one day,\nand ended the activity the next day:")
     print(len(users))
 
@@ -159,17 +149,9 @@ def six(db):
         '2008-08-24 15:38:00', '%Y-%m-%d %H:%M:%S')
     infected_time = utils.posix_to_excel(datetime.timestamp(infected_time))
 
-<<<<<<< HEAD
     close_activities = set() # For storing activity IDs
     
     TP_given_time = db['TrackPoint'].find({ # First limit to trackpoints from the same time frame
-=======
-    close_activities = set()
-
-    
-    TP_given_time = db['TrackPoint'].find({
-      
->>>>>>> 7cf2799705396028f666417d7c6366c160e94231
         "date_days": {
             "$gt": infected_time - SIXTY_SECONDS_DAYS,
             "$lt":  infected_time + SIXTY_SECONDS_DAYS
@@ -288,12 +270,8 @@ def ten(db):
     return total_distance
 
 def eleven(db):
-<<<<<<< HEAD
     """Get top 20 users with most altitude gained over all activities"""
     ONE_METER_FEET = 0.3048 # 1 foot ~0.3 feet
-=======
-    ONE_METER_FEET = 0.3048  # 1 foot ~0.3 feet
->>>>>>> 7cf2799705396028f666417d7c6366c160e94231
     alt_gained = dict()
     for i in range(1, 182):
         alt_gained[str(i).zfill(3)] = 0
@@ -303,7 +281,6 @@ def eleven(db):
         activities_to_user = utils.single_val(db.User.find({"_id": user}), 'activities')
         # TODO 'single_val` could be optimized better as it re-casts query result several times
         for act in tqdm(activities_to_user): # act_list:
-<<<<<<< HEAD
             TP_list = list(db.TrackPoint.find({"activity_id": act}))
             for i in range(1, len(TP_list)):
                 if TP_list[i-1] == -777 or TP_list[i] == -777: # Skip invalid altitude all-together
@@ -313,18 +290,6 @@ def eleven(db):
                     # Add difference between last and current altitude to dictionary
                     alt_gained[user] += altitude_difference
     
-=======
-            TP_list = db.TrackPoint.find({"activity_id": act})
-            prev_TP_alt = 0
-            for TP in TP_list:
-                if TP['altitude'] == -777:  # Skip invalid altitude all-together
-                    prev_TP_alt = 0
-                    continue
-                if TP['altitude'] > prev_TP_alt:
-                    alt_gained[user] += TP['altitude'] - prev_TP_alt
-                prev_TP_alt = TP['altitude']
-
->>>>>>> 7cf2799705396028f666417d7c6366c160e94231
     # Get the top 20 highest total altitude
     top_users = sorted(alt_gained, key=alt_gained.get, reverse=True)[:20]
     print("Query 11\nPlace\tUserID\tAltitude gained")
