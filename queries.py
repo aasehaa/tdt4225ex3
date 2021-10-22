@@ -196,22 +196,22 @@ def eight(db):
     act = loads(j)
    
     # find the transportation mode for each activity for each user
-    tm = []
+    transportation_modes = []
     for user in act:
         res = []
         for activity in user:
             mode = db['Activity'].find({"_id": activity, "transportation_mode": {"$ne": "NULL"}}, {"_id":0, "transportation_mode":1})
             res.append(mode)
-        tm.append(res)
+        transportation_modes.append(res)
 
-    j = dumps(tm)
+    j = dumps(transportation_modes)
     t_mode = loads(j)
 
     # remove dictionary-format, only list actual transportation-modes
     mode = []
-    for t in t_mode:
+    for transportation_mode in t_mode:
         f = []
-        for g in t:
+        for g in transportation_mode:
             if g == []:
                 continue
             for s in g:
@@ -219,17 +219,17 @@ def eight(db):
         mode.append(f)
 
     # make each users list of transportation modes into a set to find distinct values
-    d = {}
+    distinct = {}
     for el in mode:
         s = set(el)
         for x in s:
-            if x not in d:
-                d[x] = 1
+            if x not in distinct:
+                distinct[x] = 1
             else:
-                d[x] += 1
+                distinct[x] += 1
 
-    print(d)
-    return d
+    print(distinct)
+    return distinct
 
 def ten(db):
     """Find the total distance (in km) walked in 2008, by user with id=112."""
@@ -238,32 +238,32 @@ def ten(db):
     for a in db['User'].find({"_id":"112"}, {"_id":0, "activities":1}):
         activities = a['activities']
 
-    cursor = []
+    activity_with_information = []
     for activity in activities:
-        cursor.append(db['Activity'].find({"_id": activity}))
+        activity_with_information.append(db['Activity'].find({"_id": activity}))
 
-    act = dumps(cursor)
-    liste = loads(act)
+    act = dumps(activity_with_information)
+    activities_json = loads(act)
     
     walk = []
-    for doc in liste:
-        for c in doc:
-            if c['transportation_mode'] == "'walk'" and (c['start_date_time'][0:3] == 2008 or c['end_date_time'][0:3] == 2008):
-                walk.append(c)
+    for doc in activities_json:
+        for activity in doc:
+            if activity['transportation_mode'] == "'walk'" and (activity['start_date_time'][0:3] == 2008 or activity['end_date_time'][0:3] == 2008):
+                walk.append(activity)
         
-    x = []
+    tp = []
     for el in walk:
-        x.append(db['TrackPoint'].find({"activity_id" : el["_id"]}, {"_id":0,"lat":1, "lon":1}))
+        tp.append(db['TrackPoint'].find({"activity_id" : el["_id"]}, {"_id":0,"lat":1, "lon":1}))
     
-    a = dumps(x)
-    li = loads(a)
+    a = dumps(tp)
+    points = loads(a)
 
     total_distance = 0
-    for s in range(0, len(li)-1):
-        if len(li) <= 1:
+    for s in range(0, len(points)-1):
+        if len(points) <= 1:
             break
-        for g in range(0, len(li[s])-1):
-            total_distance += haversine((float(li[s][g]["lat"]), float(li[s][g]["lon"])), (float(li[s][g+1]["lat"]), float(li[s][g+1]["lon"])))
+        for g in range(0, len(points[s])-1):
+            total_distance += haversine((float(points[s][g]["lat"]), float(points[s][g]["lon"])), (float(points[s][g+1]["lat"]), float(points[s][g+1]["lon"])))
 
     print('The total distance walked by user with id=112 in 2008 is:')
     print(total_distance)
