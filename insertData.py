@@ -208,10 +208,10 @@ def main():
         program = InsertDataProgram()
 
         # Uncomment to create all collections
-        program.create_all_colls(program)
+        # program.create_all_colls(program)
 
         # Uncomment to add all data - remember to check dataset path
-        program.add_all_data()
+        # program.add_all_data()
 
         # Uncomment for dropping collections
         # program.drop_all_colls(program)
