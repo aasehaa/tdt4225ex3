@@ -51,20 +51,51 @@ def eight(db):
     have used the different transportation modes. Do not count the rows where the
     transportation mode is null"""
 
-    res = db['Activity'].aggregate([
-        {"$group": {
-            "_id": "$transportation_mode", 
-            "count": {"$sum":1}
-            }
-        }
-    ])
+    # find the activities of the users with labels 
+    has_labels = db['User'].find({"has_labels": True }, {"_id":0,"activities":1})
 
-    for doc in res:
-        if doc['_id'] == 'NULL':
-            continue
-        print(doc)
+    activities = []
+    for doc in has_labels:
+        activities.append(doc['activities'])
+        
+    j = dumps(activities)
+    act = loads(j)
+   
+    # find the transportation mode for each activity for each user
+    tm = []
+    for user in act:
+        res = []
+        for activity in user:
+            mode = db['Activity'].find({"_id": activity, "transportation_mode": {"$ne": "NULL"}}, {"_id":0, "transportation_mode":1})
+            res.append(mode)
+        tm.append(res)
 
-    return res
+    j = dumps(tm)
+    t_mode = loads(j)
+
+    # remove dictionary-format, only list actual transportation-modes
+    mode = []
+    for t in t_mode:
+        f = []
+        for g in t:
+            if g == []:
+                continue
+            for s in g:
+                f.append(s["transportation_mode"])
+        mode.append(f)
+
+    # make each users list of transportation modes into a set to find distinct values
+    d = {}
+    for el in mode:
+        s = set(el)
+        for x in s:
+            if x not in d:
+                d[x] = 1
+            else:
+                d[x] += 1
+
+    print(d)
+    return d
 
 def ten(db):
     """Find the total distance (in km) walked in 2008, by user with id=112."""
