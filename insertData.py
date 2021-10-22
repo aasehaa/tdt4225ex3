@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 from tabulate import tabulate
 from typing import Tuple
-from models import TrackPointObj
 
 try:
     from tqdm import tqdm
@@ -27,21 +26,6 @@ class InsertDataProgram:
         self.client = self.connection.client
         self.db = self.connection.db
 
-    def create_coll(self, collection_name):
-        collection = self.db.create_collection(collection_name)
-        print('Created collection: ', collection)
-
-    def insert_documents(self, collection_name):
-        docs = []  # here comes code that shows the collection somehow
-        collection = self.db[collection_name]
-        collection.insert_many(docs)
-
-    def fetch_documents(self, collection_name):
-        collection = self.db[collection_name]
-        documents = collection.find({})
-        for doc in documents:
-            pprint(doc)
-
     def add_all_data(self):
 
         dataset_path = os.path.dirname(__file__) + "/../dataset"
@@ -50,26 +34,28 @@ class InsertDataProgram:
         activity_primary_id = 0
         track_point_id = 0
 
-        user_doc = {
-            "_id": "",
-            "has_labels": False,
-            "activities": []
-        }
-
-        with open(test_dataset_path + '/labeled_ids.txt', 'r') as fs:
+        with open(dataset_path + '/labeled_ids.txt', 'r') as fs:
             labeled_IDs = fs.read().splitlines()
 
-        for level, (root, dirs, files) in enumerate(os.walk(test_dataset_path + '/Data')):
-            print('hurra')
+        for level, (root, dirs, files) in enumerate(os.walk(dataset_path + '/Data')):
+
             if level == 0:
                 for id in dirs:
                     user_has_labels = id in labeled_IDs
-                    user_doc["_id"] = id
-                    user_doc["has_labels"] = user_has_labels
+
+                    # add user collection to db
+                    user_collection = self.db["User"]
+                    user_collection.insert_one({
+                        "_id": id,
+                        "has_labels": user_has_labels,
+                        "activities": []
+                    })
+
                     # Create a 2D list for each ID in a dictionary made for matching activities with their labels
                     self.potential_matches[id] = [[], [], []]
 
             activity_docs = []
+            activity_ids_for_user = []
 
             if files != []:
                 for fn in files:
@@ -99,16 +85,18 @@ class InsertDataProgram:
 
                             for point in activity:
 
-                                track_point = self.create_track_point(
-                                    point, activity_primary_id)
+                                lat, long, _, altitude, timestamp, date, time = point.split(
+                                    ',')
+                                time_datetime = date + " " + time
 
                                 track_point_docs.append({
                                     "_id": track_point_id,
-                                    "lat": track_point.lat,
-                                    "lon": track_point.long,
-                                    "altitude": track_point.altitude,
-                                    "date_days": track_point.date_days,
-                                    "date_time": track_point.date_time
+                                    "lat": lat,
+                                    "lon": long,
+                                    "altitude": altitude,
+                                    "date_days": timestamp,
+                                    "date_time": time_datetime,
+                                    "activity_id": activity_primary_id
                                 })
 
                                 track_points.append(track_point_id)
@@ -116,8 +104,9 @@ class InsertDataProgram:
 
                             # add all track point docs tocollection in db
                             track_point_collection = self.db["TrackPoint"]
-                            track_point_collection.insert_many(
-                                track_point_docs)
+                            if track_point_docs != []:
+                                track_point_collection.insert_many(
+                                    track_point_docs)
 
                             activity_docs.append({
                                 "_id": activity_primary_id,
@@ -126,20 +115,28 @@ class InsertDataProgram:
                                 "end_date_time": activity_end,
                             })
 
-                            user_doc["activities"].append(activity_primary_id)
+                            # user_doc["activities"].append(activity_primary_id)
+                            activity_ids_for_user.append(activity_primary_id)
                             activity_primary_id += 1
 
-            if(activity_docs != []):
+            self.add_tackpoints_to_db(activity_docs)
+            self.update_activity_list(activity_ids_for_user)
 
-                # add all track point docs to collection in db
-                activity_collection = self.db["Activity"]
-                activity_collection.insert_many(activity_docs)
+            # next user should have [] from start
+            activity_ids_for_user = []
 
-        if(user_doc != []):
+    def add_trackpoints_to_db(self, activity_docs):
+        # add all track point docs to collection in db
+        activity_collection = self.db["Activity"]
+        if activity_docs != []:
+            activity_collection.insert_many(activity_docs)
 
-            # add user to collection
-            user_collection = self.db["User"]
-            user_collection.insert_one(user_doc)
+    def update_activity_list(self, activity_ids_for_user):
+        # update acitvity list in user_doc
+        user_query = {"activities": []}
+        new_activities_for_user = {
+            "$set": {'activities': activity_ids_for_user}}
+        self.db['User'].update_one(user_query, new_activities_for_user)
 
     def add_labeled_files_to_dict(self, root, fn):
         with open(root + '/' + fn, 'r') as labels_file:
@@ -174,16 +171,6 @@ class InsertDataProgram:
             ',')[5] + ' ' + activity[-1].split(',')[6]
         return activity_start, activity_end
 
-    def create_track_point(self, point, activity_ID):
-        lat, long, _, alt, timestamp, date, time = point.split(
-            ',')
-        time_datetime = date + " " + time
-
-        track_point = TrackPointObj.TrackPoint(
-            activity_ID, lat, long, alt, timestamp, time_datetime)
-
-        return track_point
-
     def correct_start_and_end_time(self, activity_start, activity_end, user):
         if activity_start in self.potential_matches[user][0]:
             # This triggers when we find a match for the start time.
@@ -194,19 +181,24 @@ class InsertDataProgram:
                 self.transp_mode = "'" + \
                     self.potential_matches[user][2][ind] + "'"
 
+    def create_coll(self, collection_name):
+        collection = self.db.create_collection(collection_name)
+        print('Created collection: ', collection)
+
     def drop_coll(self, collection_name):
         collection = self.db[collection_name]
         collection.drop()
         print('Collection ' + collection_name + ' dropped. ')
 
-    def fetch_documents(self, collection_name):
-        collection = self.db[collection_name]
-        documents = collection.find({})
-        for doc in documents:
-            pprint(doc)
+    def drop_all_colls(self, program):
+        program.drop_coll(collection_name="User")
+        program.drop_coll(collection_name='Activity')
+        program.drop_coll(collection_name='TrackPoint')
 
-    def drop_all_colls(self):
-        self.db.dropDatabase()
+    def create_all_colls(self, program):
+        program.create_coll(collection_name="User")
+        program.create_coll(collection_name="Activity")
+        program.create_coll(collection_name="TrackPoint")
 
 
 def main():
@@ -216,23 +208,14 @@ def main():
         program = InsertDataProgram()
 
         # Uncomment to create all collections
-        # program.create_coll(collection_name="User")
-        # program.create_coll(collection_name="Activity")
-        # program.create_coll(collection_name="TrackPoint")
+        # program.create_all_colls(program)
 
         # Uncomment to add all data - remember to check dataset path
         # program.add_all_data()
 
         # Uncomment for dropping collections
-        # program.drop_coll(collection_name="User")
-        # program.drop_coll(collection_name='Activity')
-        # program.drop_coll(collection_name='TrackPoint')
+        # program.drop_all_colls(program)
 
-        # Test code to check trackpoints or activities (does not work for user)
-        #collection = program.db['TrackPoint']
-        #documents = collection.find({}).limit(5)
-        # for doc in documents:
-        # pprint(doc)
     except Exception as e:
         print("ERROR: Failed to use database:", e)
     finally:
