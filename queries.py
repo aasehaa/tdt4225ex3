@@ -232,19 +232,19 @@ def eight(db):
     # remove dictionary-format, only list actual transportation-modes
     mode = []
     for transportation_mode in t_mode:
-        f = []
-        for g in transportation_mode:
-            if g == []:
+        only_trans_mode = []
+        for el in transportation_mode:
+            if el == []:
                 continue
-            for s in g:
-                f.append(s["transportation_mode"])
-        mode.append(f)
+            for dict in el:
+                only_trans_mode.append(dict["transportation_mode"])
+        mode.append(only_trans_mode)
 
     # make each users list of transportation modes into a set to find distinct values
     distinct = {}
     for el in mode:
-        s = set(el)
-        for x in s:
+        distinct_trans_modes_per_user = set(el)
+        for x in distinct_trans_modes_per_user:
             if x not in distinct:
                 distinct[x] = 1
             else:
