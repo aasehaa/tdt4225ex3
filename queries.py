@@ -3,6 +3,7 @@ from datetime import datetime
 from DbConnector import DbConnector
 from haversine import haversine, Unit
 from pprint import pprint
+from bson.json_util import dumps, loads
 import utils
 try:
     from tqdm import tqdm
@@ -135,9 +136,10 @@ def five(db):
 
 def six(db):
     """Find user_ids 'close' to given infected person"""
-    HOUNDED_METER_FEET = 328.08399  # 100m ~ 328 feet'
-    SIXTY_SECONDS_DAYS = 60/86_400  # 86,400 seconds = 1 day
-    infected_position = (39.97548, 116.33031)
+
+    SIXTY_SECONDS_DAYS = 60/86_400 # 86,400 seconds = 1 day
+    infected_position =  (39.97548, 116.33031)
+
     # Get infected time and convert to same format as in database
     infected_time = datetime.strptime(
         '2008-08-24 15:38:00', '%Y-%m-%d %H:%M:%S')
@@ -145,9 +147,11 @@ def six(db):
 
     close_activities = set()
 
-    TP_given_time = db.TrackPoint.find({
+    
+    TP_given_time = db['TrackPoint'].find({
+      
         "date_days": {
-            "$gt$": infected_time - SIXTY_SECONDS_DAYS,
+            "$gt": infected_time - SIXTY_SECONDS_DAYS,
             "$lt":  infected_time + SIXTY_SECONDS_DAYS
         }
     })
@@ -168,10 +172,99 @@ def six(db):
          })
     print("Close contacts with infected:")
     for person in close_contacts:
-        print(person['_id'])
 
+        print(person)
+    
     return close_contacts
 
+def eight(db):
+    """Find all types of transportation modes and count how many distinct users that
+    have used the different transportation modes. Do not count the rows where the
+    transportation mode is null"""
+
+    # find the activities of the users with labels 
+    has_labels = db['User'].find({"has_labels": True }, {"_id":0,"activities":1})
+
+    activities = []
+    for doc in has_labels:
+        activities.append(doc['activities'])
+        
+    j = dumps(activities)
+    act = loads(j)
+   
+    # find the transportation mode for each activity for each user
+    tm = []
+    for user in act:
+        res = []
+        for activity in user:
+            mode = db['Activity'].find({"_id": activity, "transportation_mode": {"$ne": "NULL"}}, {"_id":0, "transportation_mode":1})
+            res.append(mode)
+        tm.append(res)
+
+    j = dumps(tm)
+    t_mode = loads(j)
+
+    # remove dictionary-format, only list actual transportation-modes
+    mode = []
+    for t in t_mode:
+        f = []
+        for g in t:
+            if g == []:
+                continue
+            for s in g:
+                f.append(s["transportation_mode"])
+        mode.append(f)
+
+    # make each users list of transportation modes into a set to find distinct values
+    d = {}
+    for el in mode:
+        s = set(el)
+        for x in s:
+            if x not in d:
+                d[x] = 1
+            else:
+                d[x] += 1
+
+    print(d)
+    return d
+
+def ten(db):
+    """Find the total distance (in km) walked in 2008, by user with id=112."""
+
+    activities = None
+    for a in db['User'].find({"_id":"112"}, {"_id":0, "activities":1}):
+        activities = a['activities']
+
+    cursor = []
+    for activity in activities:
+        cursor.append(db['Activity'].find({"_id": activity}))
+
+    act = dumps(cursor)
+    liste = loads(act)
+    
+    walk = []
+    for doc in liste:
+        for c in doc:
+            if c['transportation_mode'] == "'walk'" and (c['start_date_time'][0:3] == 2008 or c['end_date_time'][0:3] == 2008):
+                walk.append(c)
+        
+    x = []
+    for el in walk:
+        x.append(db['TrackPoint'].find({"activity_id" : el["_id"]}, {"_id":0,"lat":1, "lon":1}))
+    
+    a = dumps(x)
+    li = loads(a)
+
+    total_distance = 0
+    for s in range(0, len(li)-1):
+        if len(li) <= 1:
+            break
+        for g in range(0, len(li[s])-1):
+            total_distance += haversine((float(li[s][g]["lat"]), float(li[s][g]["lon"])), (float(li[s][g+1]["lat"]), float(li[s][g+1]["lon"])))
+
+    print('The total distance walked by user with id=112 in 2008 is:')
+    print(total_distance)
+    return total_distance
 
 def eleven(db):
     ONE_METER_FEET = 0.3048  # 1 foot ~0.3 feet
@@ -180,9 +273,10 @@ def eleven(db):
         alt_gained[str(i).zfill(3)] = 0
 
     for user in tqdm(alt_gained.keys()):
-        act_list = db.User.find({"_id": user})
-        for act in act_list:
-            TP_list = db.TrackPoint.find({"activity_id": act['_id']})
+        activities_to_user = utils.single_val(db.User.find({"_id": user}), 'activities')
+        # act_list = db.User.find({"_id": user}) # user dictionary result
+        for act in tqdm(activities_to_user): # act_list:
+            TP_list = db.TrackPoint.find({"activity_id": act})
             prev_TP_alt = 0
             for TP in TP_list:
                 if TP['altitude'] == -777:  # Skip invalid altitude all-together
@@ -202,9 +296,6 @@ def eleven(db):
 
 
 def twelve(db):
-    pass
-    # "Psudeocode" (actually pretty much ready but not tested):
-    """ 
     TIMEOUT_CRITERIA_FROM_TIMESTAMP = 5 * 60/86_400
     invalid_dict = dict()
     for i in range(1,182):
@@ -223,7 +314,6 @@ def twelve(db):
                     break # Breaks out of TP loop so we jump to the next activity
     pprint(invalid_dict)
     return invalid_dict
-    """
 
 
 def select_menu(*args):
@@ -235,13 +325,13 @@ def select_menu(*args):
         "3": partial(three, *args),
         "4": partial(four, *args),
         "5": partial(five, *args),
-        "6": partial(print, ""),
+        "6": partial(six, *args),
         "7": partial(print, ""),
-        "8": partial(print, ""),
+        "8": partial(eight, *args),
         "9": partial(print, ""),
-        "10": partial(print, ""),
-        "11": partial(print, ""),
-        "12": partial(print, ""),
+        "10": partial(ten, *args),
+        "11": partial(eleven, *args),
+        "12": partial(twelve, *args),
         "q": partial(print, "")
     }
     while menu_selection != 'q':
@@ -269,3 +359,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

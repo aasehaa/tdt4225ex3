@@ -91,10 +91,10 @@ class InsertDataProgram:
 
                                 track_point_docs.append({
                                     "_id": track_point_id,
-                                    "lat": lat,
-                                    "lon": long,
-                                    "altitude": altitude,
-                                    "date_days": timestamp,
+                                    "lat": float(lat),
+                                    "lon": float(long),
+                                    "altitude": float(altitude),
+                                    "date_days": float(timestamp),
                                     "date_time": time_datetime,
                                     "activity_id": activity_primary_id
                                 })
@@ -119,7 +119,7 @@ class InsertDataProgram:
                             activity_ids_for_user.append(activity_primary_id)
                             activity_primary_id += 1
 
-            self.add_tackpoints_to_db(activity_docs)
+            self.add_trackpoints_to_db(activity_docs)
             self.update_activity_list(activity_ids_for_user)
 
             # next user should have [] from start
@@ -208,10 +208,10 @@ def main():
         program = InsertDataProgram()
 
         # Uncomment to create all collections
-        # program.create_all_colls(program)
+        program.create_all_colls(program)
 
         # Uncomment to add all data - remember to check dataset path
-        # program.add_all_data()
+        program.add_all_data()
 
         # Uncomment for dropping collections
         # program.drop_all_colls(program)
