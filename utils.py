@@ -44,6 +44,12 @@ def testing():
     inv = posix_to_excel(time_stamp)
     print(excel_time-inv)
     # print(inv)
+    print("new test")
+    excel_time_inf = 39684.6513888889
+    print("conv infected dude")
+    posix_now = excel_to_posix(excel_time_inf) 
+    datetime_now = datetime.fromtimestamp(posix_now)
+    print(posix_now, datetime_now)
 
 if __name__ == '__main__':
     testing()

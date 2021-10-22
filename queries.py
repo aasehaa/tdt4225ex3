@@ -93,7 +93,6 @@ def four(db):
 
 def six(db):
     """Find user_ids 'close' to given infected person"""
-    HOUNDED_METER_FEET = 328.08399 # 100m ~ 328 feet'
     SIXTY_SECONDS_DAYS = 60/86_400 # 86,400 seconds = 1 day
     infected_position =  (39.97548, 116.33031)
     # Get infected time and convert to same format as in database
@@ -102,9 +101,9 @@ def six(db):
 
     close_activities = set()
     
-    TP_given_time = db.TrackPoint.find({
+    TP_given_time = db['TrackPoint'].find({
         "date_days": {
-            "$gt$": infected_time - SIXTY_SECONDS_DAYS,
+            "$gt": infected_time - SIXTY_SECONDS_DAYS,
             "$lt":  infected_time + SIXTY_SECONDS_DAYS
             }
     })
@@ -125,7 +124,7 @@ def six(db):
         })
     print("Close contacts with infected:")
     for person in close_contacts:
-        print(person['_id'])
+        print(person)
     
     return close_contacts
 
@@ -226,9 +225,10 @@ def eleven(db):
         alt_gained[str(i).zfill(3)] = 0
     
     for user in tqdm(alt_gained.keys()):
-        act_list = db.User.find({"_id": user})
-        for act in act_list:
-            TP_list = db.TrackPoint.find({"activity_id": act['_id']})
+        activities_to_user = utils.single_val(db.User.find({"_id": user}), 'activities')
+        # act_list = db.User.find({"_id": user}) # user dictionary result
+        for act in tqdm(activities_to_user): # act_list:
+            TP_list = db.TrackPoint.find({"activity_id": act})
             prev_TP_alt = 0
             for TP in TP_list:
                 if TP['altitude'] == -777: # Skip invalid altitude all-together
@@ -247,9 +247,6 @@ def eleven(db):
     return alt_gained
 
 def twelve(db):
-    pass
-    # "Psudeocode" (actually pretty much ready but not tested):
-    """ 
     TIMEOUT_CRITERIA_FROM_TIMESTAMP = 5 * 60/86_400
     invalid_dict = dict()
     for i in range(1,182):
@@ -268,8 +265,6 @@ def twelve(db):
                     break # Breaks out of TP loop so we jump to the next activity
     pprint(invalid_dict)
     return invalid_dict
-    """
-
 
 def select_menu(*args):
     """Selection menu so user may choose tasks easily"""
@@ -280,13 +275,13 @@ def select_menu(*args):
         "3": partial(three, *args),
         "4": partial(four, *args),
         "5": partial(print, ""),
-        "6": partial(print, ""),
+        "6": partial(six, *args),
         "7": partial(print, ""),
         "8": partial(eight, *args),
         "9": partial(print, ""),
         "10": partial(ten, *args),
-        "11": partial(print, ""),
-        "12": partial(print, ""),
+        "11": partial(eleven, *args),
+        "12": partial(twelve, *args),
         "q": partial(print, "")
     }
     while menu_selection != 'q':
